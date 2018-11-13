@@ -24,6 +24,10 @@ class PlainTextEdit(QPlainTextEdit):
         cursor = self.textCursor()
         
         if self.parent:
+            
+            if (e.modifiers() == Qt.ControlModifier and e.key() == Qt.Key_A):
+                return
+        
             if e.key() == 16777220:
                 text = self.textCursor().block().text()
                 command = text.replace(self.name, "")
@@ -34,10 +38,14 @@ class PlainTextEdit(QPlainTextEdit):
                 return
                 
             if e.key() == 16777219:
-                if cursor.positionInBlock() <= len(self.name) + 1:
+                
+                if cursor.positionInBlock() <= len(self.name):
+                    print("cursor pos in block: " + str(cursor.positionInBlock()))
+                    print("length of self name: " + str(len(self.name)))
                     return
+                    
                 else:
-                    cursor.deletePreviousChar()
+                    cursor.deleteChar()    
                 # self.parent.keyPressEvent(e)
                             
             super().keyPressEvent(e)
@@ -64,9 +72,7 @@ class Terminal(QWidget):
 
     def onReadyReadStandardError(self):
         self.error = self.process.readAllStandardError().data().decode()
-
         self.editor.appendPlainText(self.error.strip('\n'))
-
         self.errorSignal.emit(self.error)
         
         if self.error == "":
@@ -115,6 +121,7 @@ class Terminal(QWidget):
         else:
             self.run(command)    
     
+     
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     widget = Terminal()
