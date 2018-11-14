@@ -30,9 +30,9 @@ class PlainTextEdit(QPlainTextEdit):
         
             if e.key() == 16777220:
                 text = self.textCursor().block().text()
-                command = text.replace(self.name, "")
-                command_list = command.split()
-                self.commandSignal.emit(command)
+                #command_list = command.split()
+                #print(command)
+                self.commandSignal.emit(text)
                 self.appendPlainText(self.name)
                
                 return
@@ -40,8 +40,6 @@ class PlainTextEdit(QPlainTextEdit):
             if e.key() == 16777219:
                 
                 if cursor.positionInBlock() <= len(self.name):
-                    print("cursor pos in block: " + str(cursor.positionInBlock()))
-                    print("length of self name: " + str(len(self.name)))
                     return
                     
                 else:
@@ -97,18 +95,20 @@ class Terminal(QWidget):
     def handle(self, command):
         
         """Split a command into list so command `echo hi` would appear as ['echo', 'hi']"""
-        
-        command_list = command.split()
-        
+        real_command = command.replace(self.editor.name, "")
+        command_list = real_command.split()
+        #mprint(real_command)
+        #print(command)
+        #print(real_command)
+        #print(command)
         """Now we start implementing some commands"""
-        
-        if command == "clear":
+        if real_command == "clear":
             self.editor.clear()
             
         elif command_list[0] == "echo":
             self.editor.appendPlainText(" ".join(command_list[1:]))
             
-        elif command == "exit":
+        elif real_command == "exit":
             qApp.exit()
         
         elif command_list[0] == "cd":
@@ -117,10 +117,14 @@ class Terminal(QWidget):
                 self.editor.name = "[" + str(getpass.getuser()) + "@" + str( socket.gethostname()) + "]" + "  ~" + str(os.getcwd()) + " >$ "
             except FileNotFoundError as E:
                 self.editor.appendPlainText(str(E))
-            
+        
+        elif command == self.editor.name + real_command:
+            print(self.editor.name+real_command)
+            self.run(real_command)
+        
         else:
-            self.run(command)    
-    
+            pass # When the user does a command like ls and then presses enter then it wont read the line where the cursor is on as a command
+      
      
 if __name__ == "__main__":
     app = QApplication(sys.argv)
