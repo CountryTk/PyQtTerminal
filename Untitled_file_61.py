@@ -5,9 +5,10 @@ from PyQt5.QtWidgets import *
 import os
 import getpass
 import socket
+from pathlib import Path
 from PyQt5.QtWidgets import QWidget, QLineEdit
-from PyQt5.QtGui import QPainter, QColor
-from PyQt5.QtCore import QRect, Qt, pyqtSignal
+from PyQt5.QtGui import QPainter, QColor, QSyntaxHighlighter, QTextCharFormat, QColor
+from PyQt5.QtCore import QRect, Qt, pyqtSignal, QRegExp
 
 lineBarColor = QColor(53, 53, 53)
 
@@ -19,7 +20,7 @@ class PlainTextEdit(QPlainTextEdit):
         self.name = "[" + str(getpass.getuser()) + "@" + str(socket.gethostname()) + "]" + "  ~" + str(os.getcwd()) + " >$ "
         self.appendPlainText(self.name)
         self.parent = parent
-
+        
     def keyPressEvent(self, e):
         cursor = self.textCursor()
         
@@ -61,6 +62,7 @@ class Terminal(QWidget):
         self.editor = PlainTextEdit(self)
         self.layout = QHBoxLayout()
         self.name = None
+        self.highlighter = name_highlighter(self.editor.document(), self.editor.name)
         self.layout.addWidget(self.editor)
         self.editor.commandSignal.connect(self.handle)
         self.process.readyReadStandardError.connect(self.onReadyReadStandardError)
@@ -96,28 +98,33 @@ class Terminal(QWidget):
         
         """Split a command into list so command `echo hi` would appear as ['echo', 'hi']"""
         real_command = command.replace(self.editor.name, "")
-        command_list = real_command.split()
-        #mprint(real_command)
-        #print(command)
-        #print(real_command)
-        #print(command)
+        if real_command != "":
+            command_list = real_command.split()
+        else:
+            command_list = None 
+        # print(real_command)
         """Now we start implementing some commands"""
         if real_command == "clear":
             self.editor.clear()
             
-        elif command_list[0] == "echo":
+        elif command_list is not None and command_list[0] == "echo":
             self.editor.appendPlainText(" ".join(command_list[1:]))
             
         elif real_command == "exit":
             qApp.exit()
         
-        elif command_list[0] == "cd":
+        elif command_list is not None and command_list[0] == "cd" and len(command_list) > 1:
             try:
                 os.chdir(" ".join(command_list[1:]))
                 self.editor.name = "[" + str(getpass.getuser()) + "@" + str( socket.gethostname()) + "]" + "  ~" + str(os.getcwd()) + " >$ "
+                
             except FileNotFoundError as E:
                 self.editor.appendPlainText(str(E))
         
+        elif len(command_list) == 1 and command_list[0] == "cd":
+            os.chdir(str(Path.home()))
+            self.editor.name = "[" + str(getpass.getuser()) + "@" + str( socket.gethostname()) + "]" + "  ~" + str(os.getcwd()) + " >$ "
+            
         elif command == self.editor.name + real_command:
             print(self.editor.name+real_command)
             self.run(real_command)
@@ -125,7 +132,29 @@ class Terminal(QWidget):
         else:
             pass # When the user does a command like ls and then presses enter then it wont read the line where the cursor is on as a command
       
-     
+class name_highlighter(QSyntaxHighlighter):
+    
+    def __init__(self, parent=None, name=None):
+        super().__init__(parent)
+        self.highlightingRules = []
+        self.name = name
+        nameFormat = QTextCharFormat()
+        nameFormat.setForeground(QColor("#00ff00"))
+        nameFormat.setFontItalic(True)
+        print(self.name)
+        self.highlightingRules.append((QRegExp("\\b" + self.name + "\\b"), nameFormat))
+        
+    def highlightBlock(self, text):
+        
+        for pattern, format in self.highlightingRules:
+            expression = QRegExp(pattern)
+            index = expression.indexIn(text)
+            while index >= 0:
+                length = expression.matchedLength()
+                self.setFormat(index, length, format)
+                index = expression.indexIn(text, index + length)
+
+    
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     widget = Terminal()
