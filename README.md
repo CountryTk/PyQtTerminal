@@ -1,4 +1,4 @@
-# QtTerminal
+# PyQtTerminal
 A simple to use terminal widget written in python
 
 # Pictures
